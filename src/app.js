@@ -40,7 +40,7 @@ server.post("/participants", async (req, res) => {
   try {
     const alreadyInUse = await db
       .collection("participants")
-      .findOne({ name: sanitizedName });
+      .findOne({ name });
 
     if (alreadyInUse) return res.status(409).send("Nome de Usuário em Uso");
 
@@ -83,7 +83,7 @@ server.post("/messages", async (req, res) => {
 
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: sanitizedName });
+    .findOne({ name: user });
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
 
@@ -108,7 +108,7 @@ server.get("/messages", async (req, res) => {
   const { user } = req.headers;
   const { limit } = req.query;
   const isLimitDefined =
-    limit != undefined && (limit <= 0 || limit != Number(limit));
+    limit !== undefined && (limit <= 0 || limit !== Number(limit));
 
   const isLogged = await db.collection("participants").findOne({ name: user });
 
@@ -129,16 +129,16 @@ server.get("/messages", async (req, res) => {
 
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
-  const sanitizedName = stripHtml(user).result.trim();
+  
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: sanitizedName });
+    .findOne({ name: user});
 
   if (!user || !userLogged) return res.sendStatus(404);
   try {
     await db
       .collection("participants")
-      .updateOne({ name: sanitizedName }, { $set: { lastStatus: Date.now() } });
+      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
@@ -171,7 +171,6 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
-  const sanitizedName = stripHtml(user).result.trim();
   const sanitizedTo = stripHtml(to).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
   const sanitizedType = stripHtml(type).result.trim();
@@ -179,7 +178,7 @@ server.put("/messages/:id", async (req, res) => {
   const validation = messageSchema.validate(req.body, { abortEarly: false });
   const isLogged = await db
     .collection("participants")
-    .findOne({ name: sanitizedName });
+    .findOne({ name: user });
 
   if (!isLogged || validation.error) return res.sendStatus(422);
 
@@ -189,7 +188,7 @@ server.put("/messages/:id", async (req, res) => {
 
   if (!massageExists) return res.sendStatus(404);
 
-  if (massageExists.from !== sanitizedName) return res.sendStatus(401);
+  if (massageExists.from !== user) return res.sendStatus(401);
 
   try {
     await db
@@ -205,21 +204,21 @@ server.put("/messages/:id", async (req, res) => {
   }
 });
 
-setInterval(async () => {
-  const status = await db.collection("participants").find().toArray();
-  status.forEach(async ({ name, lastStatus }) => {
-    if (lastStatus < Date.now() - 10000) {
-      const time = dayjs().format("HH:mm:ss");
-      await db.collection("messages").insertOne({
-        from: name,
-        to: "Todos",
-        text: "sai da sala...",
-        type: "status",
-        time,
-      });
-      await db.collection("participants").deleteOne({ name });
-    }
-  });
-}, 15000);
+// setInterval(async () => {
+//   const status = await db.collection("participants").find().toArray();
+//   status.forEach(async ({ name, lastStatus }) => {
+//     if (lastStatus < Date.now() - 10000) {
+//       const time = dayjs().format("HH:mm:ss");
+//       await db.collection("messages").insertOne({
+//         from: name,
+//         to: "Todos",
+//         text: "sai da sala...",
+//         type: "status",
+//         time,
+//       });
+//       await db.collection("participants").deleteOne({ name });
+//     }
+//   });
+// }, 15000);
 
 server.listen(PORT, () => console.log(`Server Online! PORT: ${PORT}`));
