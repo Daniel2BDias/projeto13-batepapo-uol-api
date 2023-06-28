@@ -15,7 +15,7 @@ dotenv.config();
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 
 await mongoClient.connect();
-const db = mongoClient.db();
+const db = mongoClient.db("UOL");
 
 const userSchema = Joi.object({
   name: Joi.string().alphanum().required(),
@@ -41,7 +41,7 @@ server.post("/participants", async (req, res) => {
 
     await db
       .collection("participants")
-      .insertOne({ name, LastStatus: Date.now() });
+      .insertOne({ name, lastStatus: Date.now() });
 
     await db.collection("messages").insertOne({
       from: name,
@@ -81,7 +81,9 @@ server.post("/messages", async (req, res) => {
 
   try {
     const time = dayjs().format("HH:mm:ss");
-    db.collection("messages").insertOne({ from: user, to, text, type, time });
+    await db
+      .collection("messages")
+      .insertOne({ from: user, to, text, type, time });
     res.sendStatus(201);
   } catch (error) {
     res.status(500).send(error.message);
@@ -90,11 +92,10 @@ server.post("/messages", async (req, res) => {
 
 server.get("/messages", async (req, res) => {
   const { user } = req.headers;
-  if (!user) return res.sendStatus(422);
+  const isLogged = await db.collection("participants").findOne({ name: user });
+  if (!user || !isLogged) return res.sendStatus(422);
   try {
-    const messages = db
-      .collection("messages")
-      .find({ $or: [{ from: user }, { to: user }, { to: "Todos" }] });
+    const messages = db.collection("messages").find().toArray();
     res.send(messages);
   } catch (error) {
     res.status(500).send(error.message);
@@ -103,13 +104,15 @@ server.get("/messages", async (req, res) => {
 
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
-  const userLogged = await db.collection("participants").findOne({name: user});
+  const userLogged = await db
+    .collection("participants")
+    .findOne({ name: user });
 
-  if(!user || !userLogged) return res.sendStatus(404);
+  if (!user || !userLogged) return res.sendStatus(404);
   try {
     await db
       .collection("participants")
-      .updateOne({ name: user }, { $set: { LastStatus: Date.now() }});
+      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
