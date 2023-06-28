@@ -180,21 +180,21 @@ server.put("/messages/:id", async (req, res) => {
   }
 });
 
-// setInterval(async () => {
-//   const status = await db.collection("participants").find().toArray();
-//   status.forEach(async ({ name, lastStatus }) => {
-//     if (lastStatus < Date.now() - 5000) {
-//       const time = dayjs().format("HH:mm:ss");
-//       await db.collection("messages").insertOne({
-//         from: name,
-//         to: 'Todos',
-//         text: 'sai da sala...',
-//         type: 'status',
-//         time
-//     });
-//       await db.collection("participants").deleteOne({ name });
-//     }
-//   });
-// }, 15000);
+setInterval(async () => {
+  const status = await db.collection("participants").find().toArray();
+  status.forEach(async ({ name, lastStatus }) => {
+    if (lastStatus < Date.now() - 5000) {
+      const time = dayjs().format("HH:mm:ss");
+      await db.collection("messages").insertOne({
+        from: name,
+        to: 'Todos',
+        text: 'sai da sala...',
+        type: 'status',
+        time
+    });
+      await db.collection("participants").deleteOne({ name });
+    }
+  });
+}, 15000);
 
 server.listen(PORT, () => console.log(`Server Online! PORT: ${PORT}`));
