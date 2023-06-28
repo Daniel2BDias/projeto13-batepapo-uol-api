@@ -4,6 +4,7 @@ import Joi from "joi";
 import dotenv from "dotenv";
 import { MongoClient, ObjectId } from "mongodb";
 import dayjs from "dayjs";
+import { stripHtml } from "string-strip-html";
 
 const server = express();
 const PORT = 5000;
@@ -22,7 +23,7 @@ const userSchema = Joi.object({
 });
 
 const messageSchema = Joi.object({
-  to: Joi.string().required(),
+  to: Joi.string().alphanum().required(),
   text: Joi.string().required(),
   type: Joi.string().valid("message", "private_message").required(),
 });
