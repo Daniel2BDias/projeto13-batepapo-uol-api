@@ -12,32 +12,70 @@ server.use(cors());
 server.use(json());
 dotenv.config();
 
-server.post("/participants", async (req, res)=> {
- 
+const mongoClient = new MongoClient(process.env.DATABASE_URL);
+
+await mongoClient.connect();
+const db = mongoClient.db("UOL");
+
+const userSchema = Joi.object({
+  name: Joi.string().required(),
+});
+
+server.post("/participants", async (req, res) => {
+    
+    const { name } = req.body;
+
+    const validation = userSchema.validate({ name });
+
+    if (validation.error) return res.sendStatus(422);
+
+  try {
+
+    const alreadyInUse = await db.collection("participants").findOne({ name });
+
+    if(alreadyInUse) return res.status(409).send("Nome de Usuário em Uso")
+
+    await db.collection("participants").insertOne({ name, LastStatus: Date.now() });
+    
+    await db.collection("messages").insertOne({
+      from: name,
+      to: 'Todos',
+      text: 'entra na sala...',
+      type: 'status',
+      time: dayjs().format("HH:mm:ss")
+    });
+
+    res.sendStatus(201);
+
+  } catch (error) {
+
+    res.status(500).send(console.log(error.message));
+
+  }
 });
 
 server.get("/participants", async (req, res) => {
-   
+  try {
+
+    const users = await db.collection("participants").find().toArray();
+
+    res.send(users);
+
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
 });
 
-server.post("/messages", async (req, res) => {
-
-});
+server.post("/messages", async (req, res) => {});
 
 server.get("/messages", async (req, res) => {
-
+  
 });
 
-server.post("/status", async (req, res) => {
+server.post("/status", async (req, res) => {});
 
-});
+server.delete("/messages/:id", async (req, res) => {});
 
-server.delete("/messages/:id", async (req, res) => {
-
-});
-
-server.put("/messages/:id", async (req, res) => {
-
-});
+server.put("/messages/:id", async (req, res) => {});
 
 server.listen(PORT, () => console.log(`Server Online! PORT: ${PORT}`));
