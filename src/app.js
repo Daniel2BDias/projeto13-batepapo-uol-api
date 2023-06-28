@@ -31,12 +31,16 @@ const messageSchema = Joi.object({
 server.post("/participants", async (req, res) => {
   const { name } = req.body;
 
+  const sanitizedName = stripHtml(name).trim();
+
   const validation = userSchema.validate({ name });
 
   if (validation.error) return res.sendStatus(422);
 
   try {
-    const alreadyInUse = await db.collection("participants").findOne({ name });
+    const alreadyInUse = await db
+      .collection("participants")
+      .findOne({ name: sanitizedName });
 
     if (alreadyInUse) return res.status(409).send("Nome de Usuário em Uso");
 
@@ -72,9 +76,14 @@ server.post("/messages", async (req, res) => {
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
+  const sanitizedName = stripHtml(user).trim();
+  const sanitizedText = stripHtml(text).trim();
+  const sanitizedTo = stripHtml(to).trim();
+  const sanitizedType = stripHtml(type).trim();
+
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: user });
+    .findOne({ name: sanitizedName });
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
 
@@ -82,9 +91,13 @@ server.post("/messages", async (req, res) => {
 
   try {
     const time = dayjs().format("HH:mm:ss");
-    await db
-      .collection("messages")
-      .insertOne({ from: user, to, text, type, time });
+    await db.collection("messages").insertOne({
+      from: sanitizedName,
+      to: sanitizedTo,
+      text: sanitizedText,
+      type: sanitizedType,
+      time,
+    });
     res.sendStatus(201);
   } catch (error) {
     res.status(500).send(error.message);
@@ -116,15 +129,16 @@ server.get("/messages", async (req, res) => {
 
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
+  const sanitizedName = stripHtml(user).trim();
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: user });
+    .findOne({ name: sanitizedName });
 
   if (!user || !userLogged) return res.sendStatus(404);
   try {
     await db
       .collection("participants")
-      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
+      .updateOne({ name: sanitizedName }, { $set: { lastStatus: Date.now() } });
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
@@ -138,8 +152,6 @@ server.delete("/messages/:id", async (req, res) => {
   const messageExists = await db
     .collection("messages")
     .findOne({ _id: new ObjectId(id) });
-
-  console.log(messageExists, { user });
 
   if (!messageExists) return res.sendStatus(404);
 
@@ -159,10 +171,15 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
-  const validation = messageSchema.validate(req.body, { abortEarly: false });
-  const isLogged = await db.collection("participants").findOne({ name: user });
+  const sanitizedName = stripHtml(user).trim();
+  const sanitizedTo = stripHtml(to).trim();
+  const sanitizedText = stripHtml(text).trim();
+  const sanitizedType = stripHtml(type).trim();
 
-  if(!isLogged || validation.error) return res.sendStatus(422);
+  const validation = messageSchema.validate(req.body, { abortEarly: false });
+  const isLogged = await db.collection("participants").findOne({ name: sanitizedName });
+
+  if (!isLogged || validation.error) return res.sendStatus(422);
 
   const massageExists = await db
     .collection("messages")
@@ -170,12 +187,17 @@ server.put("/messages/:id", async (req, res) => {
 
   if (!massageExists) return res.sendStatus(404);
 
-  if (massageExists.from !== user) return res.sendStatus(401);
+  if (massageExists.from !== sanitizedName) return res.sendStatus(401);
 
   try {
-    await db.collection("messages").updateOne({ _id: new ObjectId(id) }, { $set: { to, text, type } });
+    await db
+      .collection("messages")
+      .updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { to: sanitizedTo, text: sanitizedText, type: sanitizedType } }
+      );
 
-   res.sendStatus(200);
+    res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -188,11 +210,11 @@ setInterval(async () => {
       const time = dayjs().format("HH:mm:ss");
       await db.collection("messages").insertOne({
         from: name,
-        to: 'Todos',
-        text: 'sai da sala...',
-        type: 'status',
-        time
-    });
+        to: "Todos",
+        text: "sai da sala...",
+        type: "status",
+        time,
+      });
       await db.collection("participants").deleteOne({ name });
     }
   });
