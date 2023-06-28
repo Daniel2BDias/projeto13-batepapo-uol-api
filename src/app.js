@@ -33,15 +33,13 @@ server.post("/participants", async (req, res) => {
 
   const sanitizedName = stripHtml(name).result.trim();
 
-  const validation = userSchema.validate(req.body);
+  const validation = userSchema.validate({ name });
 
   if (validation.error) return res.sendStatus(422);
-
   try {
     const alreadyInUse = await db
       .collection("participants")
       .findOne({ name: sanitizedName });
-
     if (alreadyInUse) return res.status(409).send("Nome de Usuário em Uso");
 
     await db
@@ -49,13 +47,13 @@ server.post("/participants", async (req, res) => {
       .insertOne({ name: sanitizedName, lastStatus: Date.now() });
 
     await db.collection("messages").insertOne({
+      from: name,
       from: sanitizedName,
       to: "Todos",
       text: "entra na sala...",
       type: "status",
       time: dayjs().format("HH:mm:ss"),
     });
-
     res.sendStatus(201);
   } catch (error) {
     res.status(500).send(console.log(error.message));
@@ -76,12 +74,14 @@ server.post("/messages", async (req, res) => {
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
+  const sanitizedName = stripHtml(user).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
+  const sanitizedTo = stripHtml(to).result.trim();
+  const sanitizedType = stripHtml(type).result.trim();
 
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: user });
-
+    .findOne({ name: sanitizedName });
   const validation = messageSchema.validate(req.body, { abortEarly: false });
 
   if (!user || !userLogged || validation.error) return res.sendStatus(422);
@@ -89,10 +89,10 @@ server.post("/messages", async (req, res) => {
   try {
     const time = dayjs().format("HH:mm:ss");
     await db.collection("messages").insertOne({
-      from: user,
-      to,
+      from: sanitizedName,
+      to: sanitizedTo,
       text: sanitizedText,
-      type,
+      type: sanitizedType,
       time,
     });
     res.sendStatus(201);
@@ -105,19 +105,15 @@ server.get("/messages", async (req, res) => {
   const { user } = req.headers;
   const { limit } = req.query;
   const isLimitDefined =
-    limit !== undefined && (limit <= 0 || limit !== Number(limit));
-
+    limit != undefined && (limit <= 0 || limit != Number(limit));
   const isLogged = await db.collection("participants").findOne({ name: user });
-
   if (!user || !isLogged || isLimitDefined) return res.sendStatus(422);
-
   try {
     const messages = await db
       .collection("messages")
       .find({ $or: [{ from: user }, { to: user }, { to: "Todos" }] })
       .toArray();
     if (limit) return res.send(messages.slice(0 - limit));
-
     res.send(messages);
   } catch (error) {
     res.status(500).send(error.message);
@@ -126,16 +122,20 @@ server.get("/messages", async (req, res) => {
 
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
-  
+
+  const sanitizedName = stripHtml(user).result.trim();
+
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: user});
+    .findOne({ name: sanitizedName });
 
   if (!user || !userLogged) return res.sendStatus(404);
+
   try {
     await db
       .collection("participants")
-      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
+      .updateOne({ name: sanitizedName }, { $set: { lastStatus: Date.now() } });
+
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
@@ -145,18 +145,13 @@ server.post("/status", async (req, res) => {
 server.delete("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
-
   const messageExists = await db
     .collection("messages")
     .findOne({ _id: new ObjectId(id) });
-
   if (!messageExists) return res.sendStatus(404);
-
   if (messageExists.from !== user) return res.sendStatus(401);
-
   try {
     await db.collection("messages").deleteOne({ _id: new ObjectId(id) });
-
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
@@ -168,31 +163,27 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
+  
+  const sanitizedName = stripHtml(user).result.trim();
+  const sanitizedTo = stripHtml(to).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
+  const sanitizedType = stripHtml(type).result.trim();
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
-  const isLogged = await db
-    .collection("participants")
-    .findOne({ name: user });
-
+  const isLogged = await db.collection("participants").findOne({ name: sanitizedName });
   if (!isLogged || validation.error) return res.sendStatus(422);
-
   const massageExists = await db
     .collection("messages")
     .findOne({ _id: new ObjectId(id) });
-
   if (!massageExists) return res.sendStatus(404);
-
-  if (massageExists.from !== user) return res.sendStatus(401);
-
+  if (massageExists.from !== sanitizedName) return res.sendStatus(401);
   try {
     await db
       .collection("messages")
       .updateOne(
         { _id: new ObjectId(id) },
-        { $set: { to, text: sanitizedText, type } }
+        { $set: { to: sanitizedTo, text: sanitizedText, type: sanitizedType } }
       );
-
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
