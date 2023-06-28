@@ -118,7 +118,7 @@ server.get("/messages", async (req, res) => {
       .collection("messages")
       .find({ $or: [{ from: user }, { to: user }, { to: "Todos" }] })
       .toArray();
-    if (isLimitDefined) return res.send(messages.slice(0 - limit));
+    if (limit) return res.send(messages.slice(0 - limit));
 
     res.send(messages);
   } catch (error) {
