@@ -15,7 +15,7 @@ dotenv.config();
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 
 await mongoClient.connect();
-const db = mongoClient.db("UOL");
+const db = mongoClient.db();
 
 const userSchema = Joi.object({
   name: Joi.string().alphanum().required(),
@@ -96,14 +96,17 @@ server.get("/messages", async (req, res) => {
 
   const isLogged = await db.collection("participants").findOne({ name: user });
 
-  if (!user || !isLogged || limit <= 0 || limit != Number(limit)) return res.sendStatus(422);
+  if (!user || !isLogged || limit <= 0 || limit != Number(limit))
+    return res.sendStatus(422);
 
   try {
     const messages = await db
       .collection("messages")
       .find({ $or: [{ from: user }, { to: user }, { to: "Todos" }] })
       .toArray();
-    res.send(messages.slice((0 - limit)));
+    if(limit) return res.send(messages.slice(0 - limit));
+
+    res.send(messages);
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -130,6 +133,21 @@ server.delete("/messages/:id", async (req, res) => {});
 
 server.put("/messages/:id", async (req, res) => {});
 
-//setInterval(() => {}, 15000);
+setInterval(async () => {
+  const status = await db.collection("participants").find().toArray();
+  status.forEach(async ({ name, lastStatus }) => {
+    if (lastStatus < Date.now()) {
+      const time = dayjs().format("HH:mm:ss");
+      await db.collection("messages").insertOne({
+        from: name,
+        to: 'Todos',
+        text: 'sai da sala...',
+        type: 'status',
+        time
+    });
+      await db.collection("participants").deleteOne({ name });
+    }
+  });
+}, 15000);
 
 server.listen(PORT, () => console.log(`Server Online! PORT: ${PORT}`));
