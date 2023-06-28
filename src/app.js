@@ -107,7 +107,7 @@ server.get("/messages", async (req, res) => {
   const { limit } = req.query;
 
   const isLimitDefined =
-    limit !== undefined && (limit <= 0 || limit != Number(limit));
+    limit !== undefined && (limit <= 0 || isNaN(limit));
 
   const isLogged = await db.collection("participants").findOne({ name: user });
 
@@ -201,23 +201,23 @@ server.put("/messages/:id", async (req, res) => {
   }
 });
 
-setInterval(async () => {
-  const status = await db.collection("participants").find().toArray();
+// setInterval(async () => {
+//   const status = await db.collection("participants").find().toArray();
 
-  status.forEach(async ({ name, lastStatus }) => {
-    if (lastStatus < Date.now() - 10000) {
-      const time = dayjs().format("HH:mm:ss");
-      await db.collection("messages").insertOne({
-        from: name,
-        to: "Todos",
-        text: "sai da sala...",
-        type: "status",
-        time,
-      });
+//   status.forEach(async ({ name, lastStatus }) => {
+//     if (lastStatus < Date.now() - 10000) {
+//       const time = dayjs().format("HH:mm:ss");
+//       await db.collection("messages").insertOne({
+//         from: name,
+//         to: "Todos",
+//         text: "sai da sala...",
+//         type: "status",
+//         time,
+//       });
       
-      await db.collection("participants").deleteOne({ name });
-    }
-  });
-}, 15000);
+//       await db.collection("participants").deleteOne({ name });
+//     }
+//   });
+// }, 15000);
 
 server.listen(PORT, () => console.log(`Server Online! PORT: ${PORT}`));
