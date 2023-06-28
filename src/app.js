@@ -93,10 +93,11 @@ server.post("/messages", async (req, res) => {
 server.get("/messages", async (req, res) => {
   const { user } = req.headers;
   const { limit } = req.query;
+  const isLimitDefined = (limit != undefined && (limit <= 0 || limit != Number(limit)));
 
   const isLogged = await db.collection("participants").findOne({ name: user });
 
-  if (!user || !isLogged || limit <= 0 || limit != Number(limit))
+  if (!user || !isLogged || isLimitDefined)
     return res.sendStatus(422);
 
   try {
