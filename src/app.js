@@ -31,7 +31,7 @@ const messageSchema = Joi.object({
 server.post("/participants", async (req, res) => {
   const { name } = req.body;
 
-  const sanitizedName = stripHtml(name).trim();
+  const sanitizedName = stripHtml(name).result.trim();
 
   const validation = userSchema.validate({ name });
 
@@ -46,10 +46,10 @@ server.post("/participants", async (req, res) => {
 
     await db
       .collection("participants")
-      .insertOne({ name, lastStatus: Date.now() });
+      .insertOne({ name: sanitizedName, lastStatus: Date.now() });
 
     await db.collection("messages").insertOne({
-      from: name,
+      from: sanitizedName,
       to: "Todos",
       text: "entra na sala...",
       type: "status",
@@ -76,10 +76,10 @@ server.post("/messages", async (req, res) => {
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
-  const sanitizedName = stripHtml(user).trim();
-  const sanitizedText = stripHtml(text).trim();
-  const sanitizedTo = stripHtml(to).trim();
-  const sanitizedType = stripHtml(type).trim();
+  const sanitizedName = stripHtml(user).result.trim();
+  const sanitizedText = stripHtml(text).result.trim();
+  const sanitizedTo = stripHtml(to).result.trim();
+  const sanitizedType = stripHtml(type).result.trim();
 
   const userLogged = await db
     .collection("participants")
@@ -129,7 +129,7 @@ server.get("/messages", async (req, res) => {
 
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
-  const sanitizedName = stripHtml(user).trim();
+  const sanitizedName = stripHtml(user).result.trim();
   const userLogged = await db
     .collection("participants")
     .findOne({ name: sanitizedName });
@@ -171,10 +171,10 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
-  const sanitizedName = stripHtml(user).trim();
-  const sanitizedTo = stripHtml(to).trim();
-  const sanitizedText = stripHtml(text).trim();
-  const sanitizedType = stripHtml(type).trim();
+  const sanitizedName = stripHtml(user).result.trim();
+  const sanitizedTo = stripHtml(to).result.trim();
+  const sanitizedText = stripHtml(text).result.trim();
+  const sanitizedType = stripHtml(type).result.trim();
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
   const isLogged = await db.collection("participants").findOne({ name: sanitizedName });
