@@ -183,7 +183,7 @@ server.put("/messages/:id", async (req, res) => {
 setInterval(async () => {
   const status = await db.collection("participants").find().toArray();
   status.forEach(async ({ name, lastStatus }) => {
-    if (lastStatus < Date.now() - 5000) {
+    if (lastStatus < Date.now() - 10000) {
       const time = dayjs().format("HH:mm:ss");
       await db.collection("messages").insertOne({
         from: name,
