@@ -92,11 +92,18 @@ server.post("/messages", async (req, res) => {
 
 server.get("/messages", async (req, res) => {
   const { user } = req.headers;
+  const { limit } = req.query;
+
   const isLogged = await db.collection("participants").findOne({ name: user });
-  if (!user || !isLogged) return res.sendStatus(422);
+
+  if (!user || !isLogged || limit <= 0 || limit != Number(limit)) return res.sendStatus(422);
+
   try {
-    const messages = db.collection("messages").find().toArray();
-    res.send(messages);
+    const messages = await db
+      .collection("messages")
+      .find({ $or: [{ from: user }, { to: user }, { to: "Todos" }] })
+      .toArray();
+    res.send(messages.slice((0 - limit)));
   } catch (error) {
     res.status(500).send(error.message);
   }
