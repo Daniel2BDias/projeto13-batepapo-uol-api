@@ -40,7 +40,7 @@ server.post("/participants", async (req, res) => {
   try {
     const alreadyInUse = await db
       .collection("participants")
-      .findOne({ name });
+      .findOne({ name: sanitizedName });
 
     if (alreadyInUse) return res.status(409).send("Nome de Usuário em Uso");
 
@@ -76,10 +76,7 @@ server.post("/messages", async (req, res) => {
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
-  const sanitizedName = stripHtml(user).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
-  const sanitizedTo = stripHtml(to).result.trim();
-  const sanitizedType = stripHtml(type).result.trim();
 
   const userLogged = await db
     .collection("participants")
@@ -92,10 +89,10 @@ server.post("/messages", async (req, res) => {
   try {
     const time = dayjs().format("HH:mm:ss");
     await db.collection("messages").insertOne({
-      from: sanitizedName,
-      to: sanitizedTo,
+      from: user,
+      to,
       text: sanitizedText,
-      type: sanitizedType,
+      type,
       time,
     });
     res.sendStatus(201);
@@ -171,9 +168,7 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
-  const sanitizedTo = stripHtml(to).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
-  const sanitizedType = stripHtml(type).result.trim();
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
   const isLogged = await db
@@ -195,7 +190,7 @@ server.put("/messages/:id", async (req, res) => {
       .collection("messages")
       .updateOne(
         { _id: new ObjectId(id) },
-        { $set: { to: sanitizedTo, text: sanitizedText, type: sanitizedType } }
+        { $set: { to, text: sanitizedText, type } }
       );
 
     res.sendStatus(200);
