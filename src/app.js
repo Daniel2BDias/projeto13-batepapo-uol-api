@@ -31,11 +31,11 @@ const messageSchema = Joi.object({
 server.post("/participants", async (req, res) => {
   const { name } = req.body;
 
-  const sanitizedName = stripHtml(name).result.trim();
-
   const validation = userSchema.validate(req.body);
 
   if (validation.error) return res.sendStatus(422);
+
+  const sanitizedName = stripHtml(name).result.trim();
   try {
     const alreadyInUse = await db
       .collection("participants")
@@ -73,18 +73,18 @@ server.post("/messages", async (req, res) => {
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
-  const sanitizedName = stripHtml(user).result.trim();
-  const sanitizedText = stripHtml(text).result.trim();
-  const sanitizedTo = stripHtml(to).result.trim();
-  const sanitizedType = stripHtml(type).result.trim();
-
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: sanitizedName });
+    .findOne({ name: user });
 
   const validation = messageSchema.validate(req.body, { abortEarly: false });
 
   if (!user || !userLogged || validation.error) return res.sendStatus(422);
+
+  const sanitizedName = stripHtml(user).result.trim();
+  const sanitizedText = stripHtml(text).result.trim();
+  const sanitizedTo = stripHtml(to).result.trim();
+  const sanitizedType = stripHtml(type).result.trim();
 
   try {
     const time = dayjs().format("HH:mm:ss");
@@ -129,18 +129,16 @@ server.get("/messages", async (req, res) => {
 server.post("/status", async (req, res) => {
   const { user } = req.headers;
 
-  const sanitizedName = stripHtml(user).result.trim();
-
   const userLogged = await db
     .collection("participants")
-    .findOne({ name: sanitizedName });
+    .findOne({ name: user });
 
   if (!user || !userLogged) return res.sendStatus(404);
 
   try {
     await db
       .collection("participants")
-      .updateOne({ name: sanitizedName }, { $set: { lastStatus: Date.now() } });
+      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
 
     res.sendStatus(200);
   } catch (error) {
@@ -173,16 +171,14 @@ server.put("/messages/:id", async (req, res) => {
   const { user } = req.headers;
   const { id } = req.params;
 
-  
-  const sanitizedName = stripHtml(user).result.trim();
+  const validation = messageSchema.validate(req.body, { abortEarly: false });
+  const isLogged = await db.collection("participants").findOne({ name: user });
+
+  if (!isLogged || validation.error) return res.sendStatus(422);
+
   const sanitizedTo = stripHtml(to).result.trim();
   const sanitizedText = stripHtml(text).result.trim();
   const sanitizedType = stripHtml(type).result.trim();
-
-  const validation = messageSchema.validate(req.body, { abortEarly: false });
-  const isLogged = await db.collection("participants").findOne({ name: sanitizedName });
-
-  if (!isLogged || validation.error) return res.sendStatus(422);
 
   const massageExists = await db
     .collection("messages")
@@ -190,7 +186,7 @@ server.put("/messages/:id", async (req, res) => {
 
   if (!massageExists) return res.sendStatus(404);
 
-  if (massageExists.from !== sanitizedName) return res.sendStatus(401);
+  if (massageExists.from !== user) return res.sendStatus(401);
 
   try {
     await db
