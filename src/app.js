@@ -19,11 +19,11 @@ await mongoClient.connect();
 const db = mongoClient.db();
 
 const userSchema = Joi.object({
-  name: Joi.string().alphanum().required(),
+  name: Joi.string().required(),
 });
 
 const messageSchema = Joi.object({
-  to: Joi.string().alphanum().required(),
+  to: Joi.string().required(),
   text: Joi.string().required(),
   type: Joi.string().valid("message", "private_message").required(),
 });
