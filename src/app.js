@@ -33,7 +33,7 @@ server.post("/participants", async (req, res) => {
 
   const sanitizedName = stripHtml(name).result.trim();
 
-  const validation = userSchema.validate({ name });
+  const validation = userSchema.validate({ name: sanitizedName });
 
   if (validation.error) return res.sendStatus(422);
 
@@ -85,7 +85,10 @@ server.post("/messages", async (req, res) => {
     .collection("participants")
     .findOne({ name: sanitizedName });
 
-  const validation = messageSchema.validate(req.body, { abortEarly: false });
+  const validation = messageSchema.validate(
+    { to: sanitizedTo, text: sanitizedText, type: sanitizedType },
+    { abortEarly: false }
+  );
 
   if (!user || !userLogged || validation.error) return res.sendStatus(422);
 
@@ -176,8 +179,13 @@ server.put("/messages/:id", async (req, res) => {
   const sanitizedText = stripHtml(text).result.trim();
   const sanitizedType = stripHtml(type).result.trim();
 
-  const validation = messageSchema.validate(req.body, { abortEarly: false });
-  const isLogged = await db.collection("participants").findOne({ name: sanitizedName });
+  const validation = messageSchema.validate(
+    { to: sanitizedText, text: sanitizedText, type: sanitizedType },
+    { abortEarly: false }
+  );
+  const isLogged = await db
+    .collection("participants")
+    .findOne({ name: sanitizedName });
 
   if (!isLogged || validation.error) return res.sendStatus(422);
 
